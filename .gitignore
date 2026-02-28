@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# macOS
+.DS_Store
+
+# Generated outputs
+report_assets/
+*.html
+
+# Local data exports (keep private)
+*.csv
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.zip
