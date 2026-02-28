@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Oura Preventive Health Report</title>
+  <style>
+    :root { --bg1:#fff7f9; --bg2:#eef9ff; --card:#fff; --ink:#273043; --muted:#5f6c7b; --line:#e8ecf1; --accent:#ff6b8b; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:'Avenir Next','PingFang TC','Microsoft JhengHei',sans-serif; color:var(--ink); background:radial-gradient(circle at top left,var(--bg1),#fff 45%),radial-gradient(circle at top right,var(--bg2),#fff 35%); line-height:1.6; }
+    .container { max-width:1180px; margin:0 auto; padding:24px; }
+    .hero { background:linear-gradient(135deg,#ffe4ec,#e7f8ff); border:1px solid var(--line); border-radius:20px; padding:26px; box-shadow:0 10px 26px rgba(30,43,67,.08); }
+    h1 { margin:0 0 8px; font-size:30px; } h2 { margin:26px 0 12px; font-size:22px; }
+    .subtitle { color:var(--muted); }
+    .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:0 6px 20px rgba(30,43,67,.06); }
+    .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
+    .pill { display:inline-block; padding:6px 10px; border-radius:999px; background:#fff; border:1px solid var(--line); margin-right:6px; font-size:12px; }
+    .nice-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .nice-table th,.nice-table td { border:1px solid var(--line); padding:8px; text-align:left; vertical-align:top; }
+    .nice-table th { background:#f6f9fc; }
+    .table-wrap { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .table-wrap .nice-table { min-width:900px; }
+    /* Freeze first column only (Metric) */
+    .table-wrap .nice-table th:nth-child(1), .table-wrap .nice-table td:nth-child(1) {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: #fff;
+      min-width: 145px;
+    }
+    .table-wrap .nice-table thead th:nth-child(1) {
+      background: #f6f9fc;
+      z-index: 3;
+    }
+    .table-wrap .score-band-table th:nth-child(1), .table-wrap .score-band-table td:nth-child(1) {
+      min-width: 120px;
+      width: 120px;
+    }
+    .chart-grid { display:grid; gap:14px; grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .chart-item svg { width:100%; height:auto; border:1px solid var(--line); border-radius:12px; }
+    .muted { color:var(--muted); }
+    .footnote-sm { font-size:12px; line-height:1.45; color:#4f5d70; margin-top:8px; }
+    .footnote-sm ul { margin:6px 0 6px 18px; padding:0; }
+    .footnote-sm p { margin:6px 0 0; }
+    .danger { color:#c1121f; font-weight:700; }
+    .warn { color:#b26a00; font-weight:700; }
+    .good { color:#2a9d50; font-weight:700; }
+    .badge { display:inline-block; padding:3px 8px; border-radius:999px; font-size:12px; font-weight:700; border:1px solid currentColor; white-space:nowrap; }
+    .pink-love { color:#ff4f87; font-weight:700; }
+    .rec-grid { display:grid; grid-template-columns:1fr; gap:12px; }
+    .rec-card { border:1px solid var(--line); border-radius:12px; padding:12px; background:#fff; }
+    .rec-card h3 { margin:6px 0 8px; font-size:16px; }
+    .rec-card p { margin:6px 0; font-size:13px; }
+    .rec-head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .rec-priority { font-size:12px; padding:2px 8px; border-radius:999px; background:#e6f6ec; color:#15693f; border:1px solid #9ad6b3; font-weight:700; }
+    .rec-risk { font-size:12px; padding:2px 8px; border-radius:999px; font-weight:700; border:1px solid transparent; }
+    .rec-risk-alert { background:#ffe3ef; color:#8a1f4d; border-color:#ffb9d3; }
+    .rec-risk-low { background:#e8f7ed; color:#166b40; border-color:#a8dfbc; }
+    .rec-action-alert { color:#b0175f; font-weight:700; }
+    @media (max-width: 900px) {
+      .chart-grid { grid-template-columns:1fr; }
+      .container { padding:14px; }
+      h1 { font-size:24px; }
+      h2 { font-size:19px; }
+      .card { padding:12px; border-radius:12px; }
+      .pill { margin-bottom:6px; }
+      .nice-table { font-size:12px; }
+      .nice-table th,.nice-table td { padding:6px; }
+      .table-wrap .nice-table { min-width:820px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="hero">
+      <h1>Preventive Health Deep-Dive / 預防醫學深度報告</h1>
+      <div class="subtitle">Your Oura data with healthy-population standards, practical ranges, and easy interpretation.</div>
+      <div style="margin-top:10px"><span class="pill">Data window: 2025-12-10 to 2026-02-18</span><span class="pill">Approach: long-term trends + healthy-population standards + your own data distribution</span></div>
+    </section>
+
+    <h2>1) Analysis Approach / 分析方法</h2>
+    <div class="card">
+      <ul>
+        <li>Use general healthy standards first, then compare with your own data spread (median and P10-P90).</li>
+        <li>Sleep, readiness, HR, SpO2 and temperature deviation are useful for early preventive signals.</li>
+        <li>Single-day spikes are less important than multi-day trends (especially temperature and stress metrics).</li>
+      </ul>
+    </div>
+
+    <h2>2) Preventive Comparison Table / 預防醫學比較表（含健康族群標準）</h2>
+    <div class="card"><div class="table-wrap"><table class="dataframe nice-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Metric<br>指標</th>
+      <th>Risk level</th>
+      <th>Unit</th>
+      <th>Your mean</th>
+      <th>Your data spread</th>
+      <th>Healthy population standard</th>
+      <th>Guideline / target</th>
+      <th>Out-of-range rate</th>
+      <th>Easy interpretation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Main sleep duration<br>主要睡眠時數</td>
+      <td><span class="badge warn">Mild Caution / 輕度注意</span></td>
+      <td>hours/night</td>
+      <td><span class="warn">6.89</span></td>
+      <td>Median 7.25 (P10-P90: 5.20-8.50)</td>
+      <td>Adults commonly need 7-9 h/night; minimum target >=7 h (CDC)</td>
+      <td>CDC sleep duration guidance</td>
+      <td><span class="warn">47.8% nights < 7 h</span></td>
+      <td>Most preventive benefit is when sleep is regularly at or above 7 hours.</td>
+    </tr>
+    <tr>
+      <td>Night average heart rate<br>夜間平均心率</td>
+      <td><span class="badge good">Good / 穩定</span></td>
+      <td>bpm</td>
+      <td><span class="good">67.1</span></td>
+      <td>Median 66.2 (P10-P90: 63.9-71.4)</td>
+      <td>General resting HR range: 60-100 bpm (lower can be normal in fit adults)</td>
+      <td>AHA resting heart-rate reference</td>
+      <td><span class="good">0.0% nights outside 60-100</span></td>
+      <td>Your sleep HR is mostly in normal resting range; track trend changes, not one-day spikes.</td>
+    </tr>
+    <tr>
+      <td>Blood oxygen (SpO2)<br>血氧</td>
+      <td><span class="badge good">Good / 穩定</span></td>
+      <td>%</td>
+      <td><span class="good">96.21</span></td>
+      <td>Median 96.05 (P10-P90: 95.29-97.45)</td>
+      <td>Pulse oximetry normal range: about 95%-100%</td>
+      <td>MedlinePlus pulse-ox reference</td>
+      <td><span class="good">2.0% days < 95%</span></td>
+      <td>Values are generally within the common normal pulse-ox range.</td>
+    </tr>
+    <tr>
+      <td>Temperature deviation<br>體溫偏差</td>
+      <td><span class="badge warn">Mild Caution / 輕度注意</span></td>
+      <td>degC deviation</td>
+      <td><span class="warn">0.05</span></td>
+      <td>Median 0.01 (P10-P90: -0.42-0.53)</td>
+      <td>No single universal healthy range for wearable deviation metrics</td>
+      <td>Use trend + symptoms; sustained upward shifts may indicate physiological stress</td>
+      <td><span class="warn">21.6% days with |deviation| > 0.5</span></td>
+      <td>This is personal-trend based, not a fixed clinical thermometer range.</td>
+    </tr>
+    <tr>
+      <td>Sleep score<br>睡眠分數</td>
+      <td><span class="badge good">Good / 穩定</span></td>
+      <td>0-100</td>
+      <td><span class="good">71.0</span></td>
+      <td>Median 77.0 (P10-P90: 45.0-87.0)</td>
+      <td>Consumer wellness score (not a clinical diagnostic scale)</td>
+      <td>Oura bands: 85-100 optimal; 70-84 good; 60-69 fair; <60 pay attention</td>
+      <td><span class="good">33.3% days <70</span></td>
+      <td>Use sub-70 days as recovery warning days.</td>
+    </tr>
+    <tr>
+      <td>Readiness score<br>準備度分數</td>
+      <td><span class="badge good">Good / 穩定</span></td>
+      <td>0-100</td>
+      <td><span class="good">76.7</span></td>
+      <td>Median 80.0 (P10-P90: 63.0-88.0)</td>
+      <td>Consumer wellness score (not a clinical diagnostic scale)</td>
+      <td>Oura bands: 85-100 optimal; 70-84 good; 60-69 fair; <60 pay attention</td>
+      <td><span class="good">17.6% days <70</span></td>
+      <td>If readiness is low, consider reducing training load and improving sleep regularity.</td>
+    </tr>
+    <tr>
+      <td>Daily steps<br>每日步數</td>
+      <td><span class="badge warn">Mild Caution / 輕度注意</span></td>
+      <td>steps/day</td>
+      <td><span class="warn">4994</span></td>
+      <td>Median 4902 (P10-P90: 1684-7457)</td>
+      <td>No universal step cutoff; active adults often aim for a stable daily walking routine</td>
+      <td>Public-health target: >=150 min/week moderate activity (CDC)</td>
+      <td><span class="warn">52.2% days <5,000</span></td>
+      <td>More important than one cutoff: keep a stable weekly active pattern.</td>
+    </tr>
+  </tbody>
+</table></div></div>
+    <p class="muted footnote-sm">Color rule: <span class="danger">Red</span> = high risk, <span class="warn">Yellow</span> = mild caution, <span class="good">Green</span> = relatively stable.</p>
+
+    <h2>3) Oura Score Band Distribution / 分數區間分佈</h2>
+    <div class="card"><div class="table-wrap"><table class="dataframe nice-table score-band-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Score Type</th>
+      <th>Optimal (85-100)</th>
+      <th>Good (70-84)</th>
+      <th>Fair (60-69)</th>
+      <th>Pay attention (0-59)</th>
+      <th>Total days</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Activity Score / 活動分數</td>
+      <td>18 (26.1%)</td>
+      <td>10 (14.5%)</td>
+      <td>14 (20.3%)</td>
+      <td><span class="pink-love">27 (39.1%)</span></td>
+      <td>69 (100.0%)</td>
+    </tr>
+    <tr>
+      <td>Sleep Score / 睡眠分數</td>
+      <td>10 (19.6%)</td>
+      <td><span class="good">24 (47.1%)</span></td>
+      <td>6 (11.8%)</td>
+      <td>11 (21.6%)</td>
+      <td>51 (100.0%)</td>
+    </tr>
+    <tr>
+      <td>Readiness Score / 準備度分數</td>
+      <td>15 (29.4%)</td>
+      <td><span class="good">27 (52.9%)</span></td>
+      <td>4 (7.8%)</td>
+      <td>5 (9.8%)</td>
+      <td>51 (100.0%)</td>
+    </tr>
+  </tbody>
+</table></div>
+      <div class="footnote-sm">
+        <p><b>Footnote / 註解</b></p>
+        <ul>
+          <li><b>Activity Score / 活動分數</b>: Reflects daily movement and activity balance (e.g., steps, active time, inactivity, training load).<br/>代表每日活動表現與平衡（如步數、活動時間、久坐狀態、運動負荷）。</li>
+          <li><b>Sleep Score / 睡眠分數</b>: Reflects overnight sleep quality and structure (e.g., total sleep, efficiency, timing, deep/REM, restfulness).<br/>代表夜間睡眠品質與結構（如總睡眠、效率、作息時機、深睡/REM、安穩度）。</li>
+          <li><b>Readiness Score / 準備度分數</b>: Reflects recovery readiness for the day (e.g., HR/HRV signals, recent sleep and activity strain).<br/>代表當日恢復與可負荷程度（如心率/HRV 訊號、近期睡眠與活動壓力）。</li>
+        </ul>
+        <p><b>How this is evaluated / 怎麼評估：</b> Oura 會把多個生理與行為訊號整合成 0-100 分。分數越高通常代表狀態越穩定；長期趨勢比單日波動更有判讀價值。</p>
+      </div>
+    </div>
+
+    <h2>4) Data-Driven Clinical Notes / 醫學解讀筆記</h2>
+    <div class="card">
+      <ul><li>Sleep duration median is 7.25 h/night. Nights below 7h: 47.8%.</li><li>Night heart-rate median is 66.2 bpm (P10-P90: 63.9-71.4).</li><li>SpO2 median is 96.05% and below-95% days are 2.0%.</li><li>Temperature deviation median is 0.01 degC (interpret with multi-day trend + symptoms).</li><li>Sleep score median is 77 and readiness median is 80 (Oura score bands).</li></ul>
+      <ul>
+        <li>這份比較先用健康族群的一般參考值，搭配你的數據表現，幫你快速看出目前最需要優先處理的項目。</li>
+        <li>你現在最值得投資的第一步，是把睡眠時數與規律性先穩住；若長期低於 7 小時，恢復效率通常會明顯下滑。</li>
+        <li>夜間平均心率請看「連續 3-7 天趨勢」：若持續偏高，再配合壓力、疲勞與活動量一起判讀會更準確。</li>
+        <li>血氧多數人常見在 95%-100%；若你出現連續偏低，建議同時觀察是否有打鼾、白天嗜睡或呼吸不適，再考慮就醫評估。</li>
+        <li>體溫偏差屬於趨勢型訊號，不是單一診斷值；重點是「是否連續異常」與「是否合併症狀」。</li>
+      </ul>
+    </div>
+
+    <h2>5) Trend Graphs / 趨勢圖</h2>
+    <div class="chart-grid"><div class="chart-item card"><h3>Daily Steps / 每日步數</h3>
+<svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Daily Steps Trend">
+  <rect x="0" y="0" width="860" height="280" fill="#fff" rx="12"/>
+  <line x1="36" y1="36" x2="36" y2="244" stroke="#cfd8e3"/>
+  <line x1="36" y1="244" x2="824" y2="244" stroke="#cfd8e3"/>
+  <line x1="31" y1="36.0" x2="36" y2="36.0" stroke="#cfd8e3"/><line x1="31" y1="77.6" x2="36" y2="77.6" stroke="#cfd8e3"/><line x1="31" y1="119.2" x2="36" y2="119.2" stroke="#cfd8e3"/><line x1="31" y1="160.8" x2="36" y2="160.8" stroke="#cfd8e3"/><line x1="31" y1="202.4" x2="36" y2="202.4" stroke="#cfd8e3"/><line x1="31" y1="244.0" x2="36" y2="244.0" stroke="#cfd8e3"/>
+  <line x1="36.0" y1="244" x2="36.0" y2="249" stroke="#cfd8e3"/><line x1="193.6" y1="244" x2="193.6" y2="249" stroke="#cfd8e3"/><line x1="351.2" y1="244" x2="351.2" y2="249" stroke="#cfd8e3"/><line x1="508.8" y1="244" x2="508.8" y2="249" stroke="#cfd8e3"/><line x1="666.4" y1="244" x2="666.4" y2="249" stroke="#cfd8e3"/><line x1="824.0" y1="244" x2="824.0" y2="249" stroke="#cfd8e3"/>
+  <polyline points="36.0,228.8 47.6,122.6 59.2,91.3 70.8,118.1 82.4,86.1 93.9,121.2 105.5,139.1 117.1,106.5 128.7,126.3 140.3,132.4 151.9,182.1 163.5,120.6 175.1,138.4 186.6,140.5 198.2,135.8 209.8,125.0 221.4,137.3 233.0,124.7 244.6,119.0 256.2,175.8 267.8,162.4 279.4,160.3 290.9,173.1 302.5,149.7 314.1,175.1 325.7,120.4 337.3,133.6 348.9,184.2 360.5,184.4 372.1,148.5 383.6,160.5 395.2,126.3 406.8,150.1 418.4,69.4 430.0,203.0 441.6,185.5 453.2,174.4 464.8,226.3 476.4,212.6 487.9,171.7 499.5,145.3 511.1,165.1 522.7,240.3 534.3,216.2 545.9,192.8 557.5,196.5 569.1,244.0 580.6,168.6 592.2,143.1 603.8,221.1 615.4,211.1 627.0,195.5 638.6,183.4 650.2,232.8 661.8,227.3 673.4,189.1 684.9,204.6 696.5,207.7 708.1,36.0 719.7,131.8 731.3,198.5 742.9,176.7 754.5,168.4 766.1,176.9 777.6,161.1 789.2,93.6 800.8,120.2 812.4,128.5 824.0,175.9" fill="none" stroke="#ff6b8b" stroke-width="3"/>
+  <text x="36" y="20" font-size="12" fill="#5f6c7b">Daily Steps Trend</text>
+  <text x="28" y="39.0" text-anchor="end" font-size="10" fill="#5f6c7b">12321.0</text><text x="28" y="80.6" text-anchor="end" font-size="10" fill="#5f6c7b">9878.6</text><text x="28" y="122.2" text-anchor="end" font-size="10" fill="#5f6c7b">7436.2</text><text x="28" y="163.8" text-anchor="end" font-size="10" fill="#5f6c7b">4993.8</text><text x="28" y="205.4" text-anchor="end" font-size="10" fill="#5f6c7b">2551.4</text><text x="28" y="247.0" text-anchor="end" font-size="10" fill="#5f6c7b">109.0</text>
+  <text x="36.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-10</text><text x="193.6" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-24</text><text x="351.2" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-06</text><text x="508.8" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-20</text><text x="666.4" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-03</text><text x="824.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-17</text>
+  <text x="42" y="50" font-size="11" fill="#5f6c7b">max 12321.00</text>
+  <text x="42" y="238" font-size="11" fill="#5f6c7b">min 109.00</text>
+</svg>
+</div><div class="chart-item card"><h3>Sleep Score / 睡眠分數</h3>
+<svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sleep Score Trend">
+  <rect x="0" y="0" width="860" height="280" fill="#fff" rx="12"/>
+  <line x1="36" y1="36" x2="36" y2="244" stroke="#cfd8e3"/>
+  <line x1="36" y1="244" x2="824" y2="244" stroke="#cfd8e3"/>
+  <line x1="31" y1="36.0" x2="36" y2="36.0" stroke="#cfd8e3"/><line x1="31" y1="77.6" x2="36" y2="77.6" stroke="#cfd8e3"/><line x1="31" y1="119.2" x2="36" y2="119.2" stroke="#cfd8e3"/><line x1="31" y1="160.8" x2="36" y2="160.8" stroke="#cfd8e3"/><line x1="31" y1="202.4" x2="36" y2="202.4" stroke="#cfd8e3"/><line x1="31" y1="244.0" x2="36" y2="244.0" stroke="#cfd8e3"/>
+  <line x1="36.0" y1="244" x2="36.0" y2="249" stroke="#cfd8e3"/><line x1="193.6" y1="244" x2="193.6" y2="249" stroke="#cfd8e3"/><line x1="351.2" y1="244" x2="351.2" y2="249" stroke="#cfd8e3"/><line x1="508.8" y1="244" x2="508.8" y2="249" stroke="#cfd8e3"/><line x1="666.4" y1="244" x2="666.4" y2="249" stroke="#cfd8e3"/><line x1="824.0" y1="244" x2="824.0" y2="249" stroke="#cfd8e3"/>
+  <polyline points="36.0,244.0 51.8,218.0 67.5,75.0 83.3,36.0 99.0,78.2 114.8,62.0 130.6,45.8 146.3,52.2 162.1,88.0 177.8,55.5 193.6,71.8 209.4,110.8 225.1,140.0 240.9,156.2 256.6,81.5 272.4,52.2 288.2,71.8 303.9,169.2 319.7,58.8 335.4,104.2 351.2,94.5 367.0,62.0 382.7,97.8 398.5,62.0 414.2,58.8 430.0,127.0 445.8,55.5 461.5,75.0 477.3,39.2 493.0,117.2 508.8,36.0 524.6,58.8 540.3,75.0 556.1,136.8 571.8,62.0 587.6,49.0 603.4,39.2 619.1,81.5 634.9,71.8 650.6,172.5 666.4,117.2 682.2,101.0 697.9,198.5 713.7,101.0 729.4,237.5 745.2,143.2 761.0,101.0 776.7,224.5 792.5,185.5 808.2,84.8 824.0,107.5" fill="none" stroke="#5e60ce" stroke-width="3"/>
+  <text x="36" y="20" font-size="12" fill="#5f6c7b">Sleep Score Trend</text>
+  <text x="28" y="39.0" text-anchor="end" font-size="10" fill="#5f6c7b">91.0</text><text x="28" y="80.6" text-anchor="end" font-size="10" fill="#5f6c7b">78.2</text><text x="28" y="122.2" text-anchor="end" font-size="10" fill="#5f6c7b">65.4</text><text x="28" y="163.8" text-anchor="end" font-size="10" fill="#5f6c7b">52.6</text><text x="28" y="205.4" text-anchor="end" font-size="10" fill="#5f6c7b">39.8</text><text x="28" y="247.0" text-anchor="end" font-size="10" fill="#5f6c7b">27.0</text>
+  <text x="36.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-12</text><text x="193.6" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-27</text><text x="351.2" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-06</text><text x="508.8" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-18</text><text x="666.4" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-02</text><text x="824.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-17</text>
+  <text x="42" y="50" font-size="11" fill="#5f6c7b">max 91.00</text>
+  <text x="42" y="238" font-size="11" fill="#5f6c7b">min 27.00</text>
+</svg>
+</div><div class="chart-item card"><h3>Readiness Score / 準備度分數</h3>
+<svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Readiness Score Trend">
+  <rect x="0" y="0" width="860" height="280" fill="#fff" rx="12"/>
+  <line x1="36" y1="36" x2="36" y2="244" stroke="#cfd8e3"/>
+  <line x1="36" y1="244" x2="824" y2="244" stroke="#cfd8e3"/>
+  <line x1="31" y1="36.0" x2="36" y2="36.0" stroke="#cfd8e3"/><line x1="31" y1="77.6" x2="36" y2="77.6" stroke="#cfd8e3"/><line x1="31" y1="119.2" x2="36" y2="119.2" stroke="#cfd8e3"/><line x1="31" y1="160.8" x2="36" y2="160.8" stroke="#cfd8e3"/><line x1="31" y1="202.4" x2="36" y2="202.4" stroke="#cfd8e3"/><line x1="31" y1="244.0" x2="36" y2="244.0" stroke="#cfd8e3"/>
+  <line x1="36.0" y1="244" x2="36.0" y2="249" stroke="#cfd8e3"/><line x1="193.6" y1="244" x2="193.6" y2="249" stroke="#cfd8e3"/><line x1="351.2" y1="244" x2="351.2" y2="249" stroke="#cfd8e3"/><line x1="508.8" y1="244" x2="508.8" y2="249" stroke="#cfd8e3"/><line x1="666.4" y1="244" x2="666.4" y2="249" stroke="#cfd8e3"/><line x1="824.0" y1="244" x2="824.0" y2="249" stroke="#cfd8e3"/>
+  <polyline points="36.0,172.3 51.8,114.9 67.5,132.8 83.3,97.0 99.0,114.9 114.8,104.1 130.6,89.8 146.3,107.7 162.1,107.7 177.8,57.5 193.6,68.3 209.4,68.3 225.1,82.6 240.9,107.7 256.6,57.5 272.4,53.9 288.2,61.1 303.9,86.2 319.7,53.9 335.4,82.6 351.2,71.9 367.0,46.8 382.7,82.6 398.5,61.1 414.2,61.1 430.0,118.5 445.8,71.9 461.5,79.0 477.3,89.8 493.0,111.3 508.8,57.5 524.6,53.9 540.3,53.9 556.1,79.0 571.8,36.0 587.6,43.2 603.4,46.8 619.1,82.6 634.9,50.3 650.6,104.1 666.4,71.9 682.2,86.2 697.9,211.7 713.7,104.1 729.4,193.8 745.2,143.6 761.0,129.2 776.7,244.0 792.5,165.1 808.2,104.1 824.0,132.8" fill="none" stroke="#2a9d8f" stroke-width="3"/>
+  <text x="36" y="20" font-size="12" fill="#5f6c7b">Readiness Score Trend</text>
+  <text x="28" y="39.0" text-anchor="end" font-size="10" fill="#5f6c7b">93.0</text><text x="28" y="80.6" text-anchor="end" font-size="10" fill="#5f6c7b">81.4</text><text x="28" y="122.2" text-anchor="end" font-size="10" fill="#5f6c7b">69.8</text><text x="28" y="163.8" text-anchor="end" font-size="10" fill="#5f6c7b">58.2</text><text x="28" y="205.4" text-anchor="end" font-size="10" fill="#5f6c7b">46.6</text><text x="28" y="247.0" text-anchor="end" font-size="10" fill="#5f6c7b">35.0</text>
+  <text x="36.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-12</text><text x="193.6" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-27</text><text x="351.2" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-06</text><text x="508.8" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-18</text><text x="666.4" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-02</text><text x="824.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-17</text>
+  <text x="42" y="50" font-size="11" fill="#5f6c7b">max 93.00</text>
+  <text x="42" y="238" font-size="11" fill="#5f6c7b">min 35.00</text>
+</svg>
+</div><div class="chart-item card"><h3>Heart Rate (Daily Avg) / 心率（日均）</h3>
+<svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Daily Average Heart Rate">
+  <rect x="0" y="0" width="860" height="280" fill="#fff" rx="12"/>
+  <line x1="36" y1="36" x2="36" y2="244" stroke="#cfd8e3"/>
+  <line x1="36" y1="244" x2="824" y2="244" stroke="#cfd8e3"/>
+  <line x1="31" y1="36.0" x2="36" y2="36.0" stroke="#cfd8e3"/><line x1="31" y1="77.6" x2="36" y2="77.6" stroke="#cfd8e3"/><line x1="31" y1="119.2" x2="36" y2="119.2" stroke="#cfd8e3"/><line x1="31" y1="160.8" x2="36" y2="160.8" stroke="#cfd8e3"/><line x1="31" y1="202.4" x2="36" y2="202.4" stroke="#cfd8e3"/><line x1="31" y1="244.0" x2="36" y2="244.0" stroke="#cfd8e3"/>
+  <line x1="36.0" y1="244" x2="36.0" y2="249" stroke="#cfd8e3"/><line x1="193.6" y1="244" x2="193.6" y2="249" stroke="#cfd8e3"/><line x1="351.2" y1="244" x2="351.2" y2="249" stroke="#cfd8e3"/><line x1="508.8" y1="244" x2="508.8" y2="249" stroke="#cfd8e3"/><line x1="666.4" y1="244" x2="666.4" y2="249" stroke="#cfd8e3"/><line x1="824.0" y1="244" x2="824.0" y2="249" stroke="#cfd8e3"/>
+  <polyline points="36.0,138.8 47.6,175.8 59.2,129.0 70.8,132.3 82.4,102.9 93.9,80.2 105.5,100.5 117.1,111.8 128.7,65.5 140.3,62.3 151.9,125.4 163.5,163.9 175.1,137.5 186.6,125.9 198.2,143.7 209.8,151.5 221.4,148.1 233.0,137.1 244.6,141.3 256.2,223.2 267.8,177.2 279.4,187.8 290.9,175.7 302.5,157.9 314.1,210.9 325.7,157.8 337.3,80.8 348.9,192.4 360.5,218.8 372.1,176.5 383.6,229.1 395.2,180.7 406.8,167.6 418.4,125.7 430.0,117.1 441.6,153.8 453.2,210.8 464.8,222.3 476.4,182.1 487.9,180.4 499.5,210.1 511.1,243.6 522.7,244.0 534.3,208.5 545.9,189.6 557.5,237.4 569.1,240.5 580.6,218.9 592.2,227.4 603.8,202.5 615.4,221.4 627.0,212.3 638.6,192.1 650.2,207.2 661.8,158.1 673.4,218.7 684.9,162.0 696.5,118.5 708.1,190.0 719.7,36.0 731.3,181.3 742.9,146.0 754.5,156.2 766.1,197.9 777.6,121.7 789.2,220.6 800.8,73.2 812.4,160.7 824.0,140.9" fill="none" stroke="#e63946" stroke-width="3"/>
+  <text x="36" y="20" font-size="12" fill="#5f6c7b">Daily Average Heart Rate</text>
+  <text x="28" y="39.0" text-anchor="end" font-size="10" fill="#5f6c7b">106.6</text><text x="28" y="80.6" text-anchor="end" font-size="10" fill="#5f6c7b">98.9</text><text x="28" y="122.2" text-anchor="end" font-size="10" fill="#5f6c7b">91.2</text><text x="28" y="163.8" text-anchor="end" font-size="10" fill="#5f6c7b">83.4</text><text x="28" y="205.4" text-anchor="end" font-size="10" fill="#5f6c7b">75.7</text><text x="28" y="247.0" text-anchor="end" font-size="10" fill="#5f6c7b">67.9</text>
+  <text x="36.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-10</text><text x="193.6" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-24</text><text x="351.2" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-06</text><text x="508.8" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-21</text><text x="666.4" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-04</text><text x="824.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-18</text>
+  <text x="42" y="50" font-size="11" fill="#5f6c7b">max 106.65</text>
+  <text x="42" y="238" font-size="11" fill="#5f6c7b">min 67.94</text>
+</svg>
+</div><div class="chart-item card"><h3>Skin Temperature (Daily Avg) / 皮膚溫度（日均）</h3>
+<svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Daily Average Skin Temperature">
+  <rect x="0" y="0" width="860" height="280" fill="#fff" rx="12"/>
+  <line x1="36" y1="36" x2="36" y2="244" stroke="#cfd8e3"/>
+  <line x1="36" y1="244" x2="824" y2="244" stroke="#cfd8e3"/>
+  <line x1="31" y1="36.0" x2="36" y2="36.0" stroke="#cfd8e3"/><line x1="31" y1="77.6" x2="36" y2="77.6" stroke="#cfd8e3"/><line x1="31" y1="119.2" x2="36" y2="119.2" stroke="#cfd8e3"/><line x1="31" y1="160.8" x2="36" y2="160.8" stroke="#cfd8e3"/><line x1="31" y1="202.4" x2="36" y2="202.4" stroke="#cfd8e3"/><line x1="31" y1="244.0" x2="36" y2="244.0" stroke="#cfd8e3"/>
+  <line x1="36.0" y1="244" x2="36.0" y2="249" stroke="#cfd8e3"/><line x1="193.6" y1="244" x2="193.6" y2="249" stroke="#cfd8e3"/><line x1="351.2" y1="244" x2="351.2" y2="249" stroke="#cfd8e3"/><line x1="508.8" y1="244" x2="508.8" y2="249" stroke="#cfd8e3"/><line x1="666.4" y1="244" x2="666.4" y2="249" stroke="#cfd8e3"/><line x1="824.0" y1="244" x2="824.0" y2="249" stroke="#cfd8e3"/>
+  <polyline points="36.0,65.8 47.3,54.5 58.5,110.1 69.8,102.2 81.0,38.1 92.3,244.0 103.5,74.2 114.8,66.4 126.1,146.7 137.3,93.2 148.6,71.1 159.8,36.0 171.1,47.3 182.3,156.2 193.6,51.6 204.9,44.6 216.1,60.7 227.4,51.5 238.6,64.9 249.9,60.8 261.1,38.4 272.4,54.7 283.7,70.6 294.9,95.8 306.2,46.4 317.4,54.5 328.7,58.3 339.9,36.9 351.2,38.6 362.5,53.3 373.7,61.2 385.0,57.7 396.2,68.2 407.5,62.1 418.7,189.2 430.0,78.2 441.3,54.7 452.5,68.3 463.8,94.0 475.0,64.7 486.3,79.0 497.5,63.0 508.8,115.5 520.1,118.1 531.3,94.1 542.6,90.5 553.8,54.0 565.1,243.8 576.3,137.5 587.6,58.0 598.9,57.5 610.1,103.1 621.4,48.8 632.6,50.8 643.9,65.5 655.1,99.3 666.4,111.2 677.7,47.5 688.9,91.4 700.2,161.4 711.4,86.5 722.7,94.2 733.9,215.6 745.2,81.3 756.5,92.1 767.7,217.4 779.0,85.0 790.2,83.4 801.5,178.0 812.7,55.4 824.0,93.2" fill="none" stroke="#f4a261" stroke-width="3"/>
+  <text x="36" y="20" font-size="12" fill="#5f6c7b">Daily Average Skin Temperature</text>
+  <text x="28" y="39.0" text-anchor="end" font-size="10" fill="#5f6c7b">33.0</text><text x="28" y="80.6" text-anchor="end" font-size="10" fill="#5f6c7b">30.9</text><text x="28" y="122.2" text-anchor="end" font-size="10" fill="#5f6c7b">28.7</text><text x="28" y="163.8" text-anchor="end" font-size="10" fill="#5f6c7b">26.6</text><text x="28" y="205.4" text-anchor="end" font-size="10" fill="#5f6c7b">24.5</text><text x="28" y="247.0" text-anchor="end" font-size="10" fill="#5f6c7b">22.3</text>
+  <text x="36.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-10</text><text x="193.6" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-24</text><text x="351.2" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-07</text><text x="508.8" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-21</text><text x="666.4" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-04</text><text x="824.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-18</text>
+  <text x="42" y="50" font-size="11" fill="#5f6c7b">max 33.02</text>
+  <text x="42" y="238" font-size="11" fill="#5f6c7b">min 22.33</text>
+</svg>
+</div><div class="chart-item card"><h3>Stress vs Recovery / 壓力與恢復</h3>
+<svg viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Daily Stress vs Recovery">
+  <rect x="0" y="0" width="860" height="280" fill="#fff" rx="12"/>
+  <line x1="36" y1="36" x2="36" y2="244" stroke="#cfd8e3"/>
+  <line x1="36" y1="244" x2="824" y2="244" stroke="#cfd8e3"/>
+  <line x1="31" y1="36.0" x2="36" y2="36.0" stroke="#cfd8e3"/><line x1="31" y1="77.6" x2="36" y2="77.6" stroke="#cfd8e3"/><line x1="31" y1="119.2" x2="36" y2="119.2" stroke="#cfd8e3"/><line x1="31" y1="160.8" x2="36" y2="160.8" stroke="#cfd8e3"/><line x1="31" y1="202.4" x2="36" y2="202.4" stroke="#cfd8e3"/><line x1="31" y1="244.0" x2="36" y2="244.0" stroke="#cfd8e3"/>
+  <line x1="36.0" y1="244" x2="36.0" y2="249" stroke="#cfd8e3"/><line x1="193.6" y1="244" x2="193.6" y2="249" stroke="#cfd8e3"/><line x1="351.2" y1="244" x2="351.2" y2="249" stroke="#cfd8e3"/><line x1="508.8" y1="244" x2="508.8" y2="249" stroke="#cfd8e3"/><line x1="666.4" y1="244" x2="666.4" y2="249" stroke="#cfd8e3"/><line x1="824.0" y1="244" x2="824.0" y2="249" stroke="#cfd8e3"/>
+  <polyline points="36.0,148.5 49.1,183.3 62.3,164.7 75.4,101.8 88.5,136.4 101.7,152.5 114.8,111.3 127.9,196.0 141.1,142.4 154.2,148.6 167.3,56.7 180.5,160.3 193.6,136.1 206.7,161.3 219.9,133.9 233.0,107.1 246.1,154.9 259.3,117.2 272.4,157.9 285.5,145.0 298.7,117.5 311.8,128.8 324.9,174.7 338.1,155.3 351.2,136.2 364.3,165.8 377.5,178.6 390.6,175.8 403.7,148.7 416.9,71.8 430.0,174.4 443.1,138.3 456.3,209.9 469.4,126.8 482.5,165.1 495.7,170.8 508.8,199.0 521.9,109.0 535.1,135.6 548.2,210.6 561.3,153.8 587.6,179.5 600.7,136.0 613.9,148.2 627.0,244.0 640.1,221.1 653.3,160.9 666.4,200.1 679.5,164.9 692.7,52.2 705.8,170.3 718.9,235.2 732.1,137.9 745.2,195.9 758.3,223.9 771.5,158.4 784.6,75.7 797.7,176.7 810.9,129.3 824.0,153.3" fill="none" stroke="#ff7f50" stroke-width="3"/>
+  <polyline points="36.0,128.2 49.1,138.1 62.3,108.0 75.4,63.5 88.5,36.0 101.7,132.7 114.8,70.6 127.9,118.0 141.1,110.9 154.2,108.3 167.3,176.7 180.5,119.8 193.6,92.5 206.7,88.3 219.9,107.8 233.0,104.7 246.1,120.9 259.3,109.6 272.4,81.1 285.5,71.3 298.7,109.4 311.8,112.1 324.9,116.9 338.1,122.1 351.2,139.7 364.3,99.9 377.5,121.9 390.6,168.5 403.7,96.3 416.9,121.9 430.0,97.4 443.1,123.5 456.3,121.6 469.4,144.1 482.5,126.1 495.7,151.3 508.8,134.3 521.9,214.7 535.1,151.4 548.2,129.7 561.3,141.8 574.5,134.3 587.6,115.6 600.7,92.3 613.9,139.3 627.0,160.9 640.1,125.8 653.3,114.7 666.4,126.3 679.5,61.4 692.7,142.2 705.8,93.0 718.9,139.7 732.1,143.2 745.2,124.6 758.3,91.7 771.5,121.7 784.6,175.5 797.7,106.1 810.9,95.3 824.0,187.7" fill="none" stroke="#52b788" stroke-width="3"/>
+  <text x="36" y="20" font-size="12" fill="#5f6c7b">Daily Stress vs Recovery</text>
+  <text x="28" y="39.0" text-anchor="end" font-size="10" fill="#5f6c7b">65.9</text><text x="28" y="80.6" text-anchor="end" font-size="10" fill="#5f6c7b">54.5</text><text x="28" y="122.2" text-anchor="end" font-size="10" fill="#5f6c7b">43.1</text><text x="28" y="163.8" text-anchor="end" font-size="10" fill="#5f6c7b">31.7</text><text x="28" y="205.4" text-anchor="end" font-size="10" fill="#5f6c7b">20.4</text><text x="28" y="247.0" text-anchor="end" font-size="10" fill="#5f6c7b">9.0</text>
+  <text x="36.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-18</text><text x="193.6" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2025-12-30</text><text x="351.2" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-11</text><text x="508.8" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-01-25</text><text x="666.4" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-06</text><text x="824.0" y="272" text-anchor="middle" font-size="10" fill="#5f6c7b">2026-02-18</text>
+  <rect x="654" y="44" width="10" height="10" fill="#ff7f50"/><text x="669" y="53" font-size="11" fill="#5f6c7b">Stress</text>
+  <rect x="734" y="44" width="10" height="10" fill="#52b788"/><text x="749" y="53" font-size="11" fill="#5f6c7b">Recovery</text>
+</svg>
+</div></div>
+
+    <h2>6) Medical Inference, Prediction, and Action Plan / 醫學推測、預測與行動建議</h2>
+    <div class="card"><div class="rec-grid"><article class="rec-card">
+  <div class="rec-head">
+    <span class="rec-priority">Priority 1</span>
+    <span class="rec-risk rec-risk-alert">Moderate / 中</span>
+  </div>
+  <h3>Sleep duration / 睡眠時數</h3>
+  <p><b>Data Suggests / 資料推測：</b> 47.8% nights are below 7h.</p>
+  <p><b>Medical Meaning / 醫學意義：</b> Chronic short sleep is linked with higher cardiometabolic and mood-risk burden.</p>
+  <p><b>Action 2-4 Weeks / 行動建議：</b> <span class="rec-action-alert">Set fixed sleep window; target >=7h on >=5 nights/week; avoid caffeine 8h before bedtime.</span></p>
+  <p><b>Track / 追蹤：</b> Track weekly: nights >=7h, Sleep Score trend, daytime fatigue.</p>
+</article><article class="rec-card">
+  <div class="rec-head">
+    <span class="rec-priority">Priority 2</span>
+    <span class="rec-risk rec-risk-alert">Moderate / 中</span>
+  </div>
+  <h3>Activity pattern / 活動型態</h3>
+  <p><b>Data Suggests / 資料推測：</b> Mean steps 4994; low-step days (<5000): 52.2%.</p>
+  <p><b>Medical Meaning / 醫學意義：</b> In preventive medicine, regular moderate activity improves cardiovascular and metabolic outcomes.</p>
+  <p><b>Action 2-4 Weeks / 行動建議：</b> <span class="rec-action-alert">Build routine: >=150 min/week moderate activity; add short walking breaks every 60-90 min sedentary time.</span></p>
+  <p><b>Track / 追蹤：</b> Track weekly active minutes + step consistency (variance week-to-week).</p>
+</article><article class="rec-card">
+  <div class="rec-head">
+    <span class="rec-priority">Priority 3</span>
+    <span class="rec-risk rec-risk-low">Low / 低</span>
+  </div>
+  <h3>Night HR / 夜間心率</h3>
+  <p><b>Data Suggests / 資料推測：</b> Median 66.2 bpm; out-of-range nights: 0.0%.</p>
+  <p><b>Medical Meaning / 醫學意義：</b> Rising night HR over several days can reflect physiological stress, poor recovery, illness, alcohol effect, or overreaching.</p>
+  <p><b>Action 2-4 Weeks / 行動建議：</b> <span class="">On days with elevated night HR + low readiness, reduce training intensity by 20-40% and prioritize recovery sleep.</span></p>
+  <p><b>Track / 追蹤：</b> Use 7-day moving average of night HR, not single-day spikes.</p>
+</article><article class="rec-card">
+  <div class="rec-head">
+    <span class="rec-priority">Priority 4</span>
+    <span class="rec-risk rec-risk-low">Low / 低</span>
+  </div>
+  <h3>Readiness + sleep score / 準備度與睡眠分數</h3>
+  <p><b>Data Suggests / 資料推測：</b> Sleep score mean 71.0, readiness mean 76.7.</p>
+  <p><b>Medical Meaning / 醫學意義：</b> When both recovery indicators drop together, injury risk and overtraining risk increase.</p>
+  <p><b>Action 2-4 Weeks / 行動建議：</b> <span class="">Use a simple rule: if both scores are low for >=2 days, deload and prioritize sleep, hydration, and lower-intensity training.</span></p>
+  <p><b>Track / 追蹤：</b> Track 2-day and 7-day trends; avoid decisions from one low day only.</p>
+</article><article class="rec-card">
+  <div class="rec-head">
+    <span class="rec-priority">Priority 5</span>
+    <span class="rec-risk rec-risk-low">Low / 低</span>
+  </div>
+  <h3>SpO2 / 血氧</h3>
+  <p><b>Data Suggests / 資料推測：</b> Mean 96.21%; days <95%: 2.0%.</p>
+  <p><b>Medical Meaning / 醫學意義：</b> Persistent low SpO2 patterns can warrant clinical review, especially if snoring, daytime sleepiness, or breathing symptoms exist.</p>
+  <p><b>Action 2-4 Weeks / 行動建議：</b> <span class="">If low readings cluster with symptoms, discuss sleep/breathing evaluation with a clinician.</span></p>
+  <p><b>Track / 追蹤：</b> Track low-SpO2 clusters (>=3 low days in 2 weeks) and symptom diary.</p>
+</article></div></div>
+    <div class="card" style="margin-top:10px;">
+      <p><b>Summary / 總結</b></p>
+      <p>
+        You are already doing many things well, and your data gives a clear path forward.<br/>
+        The most valuable next step is to protect sleep consistency first.<br/>
+        Then support recovery with steady daytime activity and lighter training on high-stress or low-readiness days.
+      </p>
+      <p>
+        你其實已經做得不錯了，現在的數據也很清楚地指出下一步方向。<br/>
+        最值得優先做的是先把睡眠規律穩住，<br/>
+        再用穩定的日間活動量與適度調整訓練負荷來支持恢復。
+      </p>
+    </div>
+    <p class="muted footnote-sm">Priority is ranked by: medical importance + feasibility + risk level (High/Moderate/Low). This section is decision-support, not a diagnosis.</p>
+
+    <h2>7) References / 參考來源</h2>
+    <div class="card">
+<ul>
+  <li><a href="https://www.heart.org/en/healthy-living/fitness/fitness-basics/target-heart-rates" target="_blank">American Heart Association: Resting heart rate</a></li>
+  <li><a href="https://www.cdc.gov/sleep/about/index.html" target="_blank">CDC: Recommended sleep duration</a></li>
+  <li><a href="https://medlineplus.gov/lab-tests/pulse-oximetry" target="_blank">MedlinePlus: Pulse oximetry normal range</a></li>
+  <li><a href="https://support.ouraring.com/hc/en-us/articles/360025445574-An-Introduction-to-Your-Sleep-Score" target="_blank">Oura: Score bands</a></li>
+  <li><a href="https://support.ouraring.com/hc/en-us/articles/360025587493" target="_blank">Oura: Temperature baseline/deviation interpretation</a></li>
+</ul>
+</div>
+
+    <p class="muted footnote-sm">Medical disclaimer: This report is for health education and early screening support only. It is not a medical diagnosis, treatment plan, or emergency assessment. If you have persistent symptoms, abnormal readings, or urgent concerns, please seek care from a qualified clinician promptly. The safest way to use this report is to combine your data trends with symptoms, medical history, and professional advice.</p>
+  </div>
+</body>
+</html>
