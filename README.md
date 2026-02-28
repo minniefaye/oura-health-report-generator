@@ -130,5 +130,4 @@ Do not upload personal raw health exports to a public repository.
 
 本工具僅供健康教育與早期篩檢輔助，不可作為診斷、治療或急症判斷依據。  
 
-This tool is for health education and screening support only,  
-not for diagnosis, treatment, or emergency decisions.
+This tool is for health education and screening support only, not for diagnosis, treatment, or emergency decisions.
