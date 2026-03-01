@@ -604,6 +604,60 @@ def main() -> None:
         f"Sleep score median is {fmt(sp_sleep_score.get('median'),0)} and readiness median is {fmt(sp_readiness.get('median'),0)} (Oura score bands).",
     ]
 
+    # Rule-based summary generator (no AI): chooses phrasing by risk pattern.
+    def level_score(level: str) -> int:
+        # green=0, yellow=1, red=2
+        return {'green': 0, 'yellow': 1, 'red': 2}.get(level, 0)
+
+    worst_level = max(
+        level_score(sleep_level),
+        level_score(hr_level),
+        level_score(spo2_level),
+        level_score(temp_level),
+        level_score(readiness_level),
+        level_score(sleep_score_level),
+        level_score(steps_level),
+    )
+
+    sleep_priority = (sleep_level in ('red', 'yellow')) or (not math.isnan(sleep_under7) and sleep_under7 >= 30)
+    recovery_priority = (readiness_level in ('red', 'yellow')) or (sleep_score_level in ('red', 'yellow'))
+    cardio_priority = (hr_level == 'red') or (spo2_level == 'red')
+    activity_priority = steps_level in ('red', 'yellow')
+
+    opener_en = {
+        0: "Your trends look relatively stable overall, and you already have a strong foundation.",
+        1: "Your data shows a clear direction for improvement, and the good news is the next steps are practical.",
+        2: "Your data suggests a few areas need earlier attention, and acting now can improve recovery and long-term health risk."
+    }[worst_level]
+    opener_zh = {
+        0: "你的整體趨勢相對穩定，已經有不錯的健康基礎。",
+        1: "你的數據已經指出明確的改善方向，而且下一步都很務實、可執行。",
+        2: "你的數據顯示有幾個面向需要提早注意，現在開始調整有助於恢復與長期健康風險。"
+    }[worst_level]
+
+    if sleep_priority:
+        p1_en = "Protect sleep consistency first: keep a fixed sleep window and aim for at least 7 hours on most nights."
+        p1_zh = "先把睡眠規律穩住：固定入睡與起床時段，並讓多數夜晚睡眠達到至少 7 小時。"
+    elif recovery_priority:
+        p1_en = "Prioritize recovery rhythm: use low-readiness days for lighter load and keep hydration and sleep quality steady."
+        p1_zh = "優先穩定恢復節奏：在準備度偏低時降低負荷，並維持補水與睡眠品質。"
+    else:
+        p1_en = "Keep your current routine and continue small, repeatable habits that support sleep and recovery."
+        p1_zh = "請延續你目前的節奏，持續執行有助睡眠與恢復的小而穩定習慣。"
+
+    if cardio_priority:
+        p2_en = "For heart-rate and oxygen signals, focus on 3-7 day trends and pair the numbers with symptoms before making decisions."
+        p2_zh = "心率與血氧訊號建議以 3-7 天趨勢判讀，並搭配症狀再做決策。"
+    elif activity_priority:
+        p2_en = "Support resilience with steady daytime movement and fewer prolonged sedentary blocks."
+        p2_zh = "用穩定的日間活動量與減少久坐時段，來提升整體韌性與恢復能力。"
+    else:
+        p2_en = "Maintain balanced daytime activity and adjust training intensity on high-stress or low-readiness days."
+        p2_zh = "維持平衡的白天活動量，並在高壓或低準備度日適度調整訓練強度。"
+
+    summary_en_html = "<br/>".join([opener_en, p1_en, p2_en])
+    summary_zh_html = "<br/>".join([opener_zh, p1_zh, p2_zh])
+
     # Trend charts
     charts: list[tuple[str, str]] = []
 
@@ -782,14 +836,10 @@ def main() -> None:
     <div class=\"card\" style=\"margin-top:10px;\">
       <p><b>Summary / 總結</b></p>
       <p>
-        You are already doing many things well, and your data gives a clear path forward.<br/>
-        The most valuable next step is to protect sleep consistency first.<br/>
-        Then support recovery with steady daytime activity and lighter training on high-stress or low-readiness days.
+        {summary_en_html}
       </p>
       <p>
-        你其實已經做得不錯了，現在的數據也很清楚地指出下一步方向。<br/>
-        最值得優先做的是先把睡眠規律穩住，<br/>
-        再用穩定的日間活動量與適度調整訓練負荷來支持恢復。
+        {summary_zh_html}
       </p>
     </div>
     <p class=\"muted footnote-sm\">Priority is ranked by: medical importance + feasibility + risk level (High/Moderate/Low). This section is decision-support, not a diagnosis.</p>
