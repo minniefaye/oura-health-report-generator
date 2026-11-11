@@ -91,7 +91,7 @@ def line_svg(xs: list[str], ys: list[float], title: str, color: str) -> str:
 """
 
 
-def dual_line_svg(xs: list[str], y1: list[float], y2: list[float], title: str) -> str:
+def dual_line_svg(xs: list[str], y1: list[float], y2: list[float], title: str, label1: str = 'Stress', label2: str = 'Recovery') -> str:
     pairs = [(x, a, b) for x, a, b in zip(xs, y1, y2) if not (pd.isna(a) and pd.isna(b))]
     if not pairs:
         return '<p class="muted">No chart data.</p>'
@@ -148,8 +148,8 @@ def dual_line_svg(xs: list[str], y1: list[float], y2: list[float], title: str) -
   <text x=\"{margin}\" y=\"20\" font-size=\"12\" fill=\"#5f6c7b\">{title}</text>
   {''.join(y_tick_labels)}
   {''.join(x_tick_labels)}
-  <rect x=\"{margin + chart_w - 170}\" y=\"{margin + 8}\" width=\"10\" height=\"10\" fill=\"#ff7f50\"/><text x=\"{margin + chart_w - 155}\" y=\"{margin + 17}\" font-size=\"11\" fill=\"#5f6c7b\">Stress</text>
-  <rect x=\"{margin + chart_w - 90}\" y=\"{margin + 8}\" width=\"10\" height=\"10\" fill=\"#52b788\"/><text x=\"{margin + chart_w - 75}\" y=\"{margin + 17}\" font-size=\"11\" fill=\"#5f6c7b\">Recovery</text>
+  <rect x=\"{margin + chart_w - 170}\" y=\"{margin + 8}\" width=\"10\" height=\"10\" fill=\"#ff7f50\"/><text x=\"{margin + chart_w - 155}\" y=\"{margin + 17}\" font-size=\"11\" fill=\"#5f6c7b\">{label1}</text>
+  <rect x=\"{margin + chart_w - 90}\" y=\"{margin + 8}\" width=\"10\" height=\"10\" fill=\"#52b788\"/><text x=\"{margin + chart_w - 75}\" y=\"{margin + 17}\" font-size=\"11\" fill=\"#5f6c7b\">{label2}</text>
 </svg>
 """
 
@@ -271,7 +271,7 @@ def main() -> None:
 
     # Type conversion
     for df, c in [
-        (dailyactivity, 'day'), (dailysleep, 'day'), (readiness, 'day'), (dailyspo2, 'day'), (dailystress, 'day')
+        (dailyactivity, 'day'), (dailysleep, 'day'), (readiness, 'day'), (dailyspo2, 'day'), (dailystress, 'day'), (sleepmodel, 'day')
     ]:
         if c in df.columns:
             df['day_dt'] = pd.to_datetime(df[c], errors='coerce')
@@ -290,7 +290,7 @@ def main() -> None:
         (heartrate, ['bpm']),
         (temperature, ['skin_temp']),
         (battery, ['level']),
-        (sleepmodel, ['average_heart_rate', 'total_sleep_duration']),
+        (sleepmodel, ['average_heart_rate', 'total_sleep_duration', 'deep_sleep_duration', 'rem_sleep_duration']),
     ]:
         for c in cols:
             if c in df.columns:
@@ -694,6 +694,25 @@ def main() -> None:
         if not ds.empty:
             xs = [str(x)[:10] for x in ds['day_dt'].tolist()]
             charts.append(('Stress vs Recovery / 壓力與恢復', save_chart('stress_recovery.svg', dual_line_svg(xs, ds['stress_value'].tolist(), ds['recovery_value'].tolist(), 'Daily Stress vs Recovery'))))
+
+    # Daily temperature deviation (API has no skin-temperature time series;
+    # daily deviation from readiness is the closest available signal).
+    add_chart(readiness, 'day_dt', 'temperature_deviation', 'Temperature Deviation (Daily) / 體溫偏差（每日）', 'Daily Temperature Deviation', '#e07a5f', 'temp_dev.svg')
+
+    # Daily stress vs recovery from dailystress.csv (API has no daytime
+    # stress time series; daily aggregates are the closest available signal).
+    if 'day_dt' in dailystress.columns and 'stress_high' in dailystress.columns:
+        ds = dailystress[['day_dt', 'stress_high', 'recovery_high']].dropna(subset=['day_dt']).sort_values('day_dt')
+        if not ds.empty:
+            xs = [str(x)[:10] for x in ds['day_dt'].tolist()]
+            charts.append(('Stress vs Recovery (Daily) / 壓力與恢復（每日）', save_chart('stress_daily.svg', dual_line_svg(xs, (ds['stress_high'] / 60.0).tolist(), (ds['recovery_high'] / 60.0).tolist(), 'Daily Stress vs Recovery (minutes)'))))
+
+    # Deep vs REM sleep minutes from sleepmodel.csv.
+    if 'day_dt' in sleepmodel.columns and 'deep_sleep_duration' in sleepmodel.columns:
+        sm = sleepmodel[['day_dt', 'deep_sleep_duration', 'rem_sleep_duration']].dropna(subset=['day_dt']).sort_values('day_dt')
+        if not sm.empty:
+            xs = [str(x)[:10] for x in sm['day_dt'].tolist()]
+            charts.append(('Deep vs REM Sleep (minutes) / 深睡與 REM（分鐘）', save_chart('sleep_stages.svg', dual_line_svg(xs, (sm['deep_sleep_duration'] / 60.0).tolist(), (sm['rem_sleep_duration'] / 60.0).tolist(), 'Deep vs REM Sleep (minutes)', 'Deep', 'REM'))))
 
     # Utility for html table
     def table_html(df: pd.DataFrame, max_rows: int = 300) -> str:
