@@ -1,13 +1,18 @@
 """Build Oura-export-style CSVs from the live API for the report generator.
 
-Default window: 2026-10-27 to 2026-11-09 (same as the two-week analysis).
+Default window: the last 14 days ending today.
 Pass --start YYYY-MM-DD --end YYYY-MM-DD to build another window.
-Writes into ~/workspace/oura-report/input/:
+Authentication (first that works wins):
+  1. OURA_TOKEN environment variable - an Oura Personal Access Token
+     (Oura app / cloud.ouraring.com -> Personal Access Tokens).
+  2. Muse dynamic credential "custom.oura", when running inside Muse
+     with that connector set up (the original author's setup).
+Writes into --output-dir (default ~/workspace/oura-report/input):
   dailyreadiness.csv  (day, score, temperature_deviation)
   dailysleep.csv       (day, score)
   dailyactivity.csv    (day, score, steps, active_calories, total_calories)
   dailyspo2.csv        (day, spo2_percentage as JSON string)
-  dailystress.csv      (day, recovery_high, stress_high)
+  dailystress.csv      (day, recovery_high, stress_high, day_summary)
   sleepmodel.csv       (day, average_heart_rate, total_sleep_duration,
                         bedtime_start, bedtime_end)
   heartrate.csv        (timestamp, bpm) - 5-min samples for the HR chart
@@ -20,18 +25,27 @@ import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
-sys.path.insert(0, "/opt/muse/skills/custom-connector-setup/bin")
-from dynamic_credentials import add_surrogate_to_request, read_json_response
+try:
+    sys.path.insert(0, "/opt/muse/skills/custom-connector-setup/bin")
+    from dynamic_credentials import add_surrogate_to_request, read_json_response
+except Exception:  # not running inside Muse - OURA_TOKEN path still works
+    add_surrogate_to_request = None
+
+    def read_json_response(resp):
+        return json.loads(resp.read().decode("utf-8"))
+
 
 BASE = "https://api.ouraring.com"
 USER_AGENT = "MinnieOuraBriefing/1.0"
 OUT = os.path.expanduser("~/workspace/oura-report/input")
-START = "2026-10-27"
-END = "2026-11-09"
+END = date.today().isoformat()
+START = (date.today() - timedelta(days=13)).isoformat()
+TIMEZONE = "America/Los_Angeles"
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -40,13 +54,33 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def get(path, params):
-    qs = "&".join(f"{k}={v}" for k, v in params.items())
+    # urlencode matters: a "+" UTC offset (e.g. Asia/Taipei +08:00) in a
+    # hand-built query string is read as a space and Oura returns HTTP 422.
+    # (A "-" offset like Los Angeles never triggered this.)
+    qs = urllib.parse.urlencode(params)
     url = f"{BASE}{path}?{qs}"
     out = []
     while url:
         req = urllib.request.Request(url)
         req.add_header("User-Agent", USER_AGENT)
-        add_surrogate_to_request(req, "custom.oura", allowed_hosts=["api.ouraring.com"])
+        token = os.environ.get("OURA_TOKEN")
+        if token:
+            req.add_header("Authorization", f"Bearer {token}")
+        elif add_surrogate_to_request is not None:
+            try:
+                add_surrogate_to_request(req, "custom.oura", allowed_hosts=["api.ouraring.com"])
+            except Exception as e:
+                raise SystemExit(
+                    f"Could not load the Muse 'custom.oura' credential ({e}).\n"
+                    "Reconnect Oura in Muse, or set OURA_TOKEN to an OAuth "
+                    "access token and re-run. (Oura Personal Access Tokens were "
+                    "deprecated in Dec 2025.)"
+                ) from e
+        else:
+            raise SystemExit(
+                "No Oura credential available: set OURA_TOKEN to a Personal "
+                "Access Token, or run inside Muse with the custom.oura connector."
+            )
         try:
             with urllib.request.build_opener(NoRedirect()).open(req, timeout=60) as resp:
                 body = read_json_response(resp)
@@ -84,10 +118,16 @@ def write_csv(name, rows, fields):
 def main():
     import argparse
 
+    global OUT
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default=START)
     ap.add_argument("--end", default=END)
+    ap.add_argument("--output-dir", default=OUT,
+                    help="Folder to write CSVs into (default: %(default)s)")
+    ap.add_argument("--timezone", default=TIMEZONE,
+                    help="Timezone for the heartrate window, e.g. Asia/Taipei (default: %(default)s)")
     args = ap.parse_args()
+    OUT = os.path.expanduser(args.output_dir)
     start, end = args.start, args.end
     p = {"start_date": start, "end_date": end}
     readiness = get("/v2/usercollection/daily_readiness", p)
@@ -96,8 +136,8 @@ def main():
     spo2 = get("/v2/usercollection/daily_spo2", p)
     stress = get("/v2/usercollection/daily_stress", p)
     sleeps = get("/v2/usercollection/sleep", p)
-    # Heartrate samples for the whole window (datetime range, LA tz).
-    tz = ZoneInfo("America/Los_Angeles")
+    # Heartrate samples for the whole window (datetime range, chosen tz).
+    tz = ZoneInfo(args.timezone)
     start_dt = date.fromisoformat(start)
     end_dt = date.fromisoformat(end)
     start_off = _tz_offset(start_dt, tz)
@@ -152,10 +192,11 @@ def main():
                 "day": s["day"],
                 "recovery_high": s.get("recovery_high"),
                 "stress_high": s.get("stress_high"),
+                "day_summary": s.get("day_summary"),
             }
             for s in stress
         ],
-        ["day", "recovery_high", "stress_high"],
+        ["day", "recovery_high", "stress_high", "day_summary"],
     )
     write_csv(
         "sleepmodel.csv",

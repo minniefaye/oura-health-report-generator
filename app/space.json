@@ -1,0 +1,8 @@
+{
+  "runtime": "typescript",
+  "platformVersion": 29,
+  "entry": "client/dist/index.html",
+  "name": "Oura Health Report",
+  "slug": "oura-health-report",
+  "managedCronJobs": []
+}
